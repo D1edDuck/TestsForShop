@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: techshop
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    ports:
+      - "4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/techshop?schema=public
+      JWT_SECRET: techshop-super-secret-key-2024
+      JWT_EXPIRES_IN: 7d
+      PORT: 4000
+      NODE_ENV: development
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+  playwright:
+    build: ./Playwright-Study
+    depends_on:
+      - frontend
+    environment:
+      - BASE_URL=http://frontend:80
+      - API_URL=http://backend:4000
+      - CI=true
+    volumes:
+      - ./Playwright-Study/test-results:/app/test-results
+      - ./Playwright-Study/playwright-report:/app/playwright-report
+
+volumes:
+  pgdata:
